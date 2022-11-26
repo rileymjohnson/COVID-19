@@ -1,0 +1,112 @@
+.navbar-link-group > .mantine-Group-child {
+    width: 100%;
+    padding: 5px 0;
+}
+
+.tags-spoiler .mantine-Spoiler-control {
+    font-size: 12px;
+}
+
+.date-time-picker .mantine-TimeInput-label {
+    opacity: 0;
+}
+
+.date-time-picker .mantine-Col-root {
+    padding-top: 0;
+}
+
+.switch-group .mantine-Switch-label {
+    font-size: 14px;
+}
+
+.button-group {
+    gap: 0;
+}
+
+.button-group > .mantine-Group-child {
+    flex: 1;
+}
+
+.button-group > .mantine-Group-child > button {
+    border-color: rgba(73, 80, 87, 0.75);
+    border-radius: 0;
+    width: 100%;
+}
+
+.button-group > .mantine-Group-child:not(:last-child) > button {
+    border-right-width: 0;
+}
+
+.button-group > .mantine-Group-child:first-child > button {
+    border-radius: 4px 0 0 4px;
+}
+
+.button-group > .mantine-Group-child:last-child > button {
+    border-radius: 0 4px 4px 0;
+}
+
+.button-group > .mantine-Group-child:has(> button.mantine-Button-filled):not(:first-child) > button {
+    border-left-width: 0;
+}
+
+.button-group > .mantine-Group-child:has(> button.mantine-Button-filled) + .mantine-Group-child > button {
+    border-left-width: 0;
+}
+
+.select-button-group {
+    position: relative;
+}
+
+.select-button-group button.mantine-Button-root {
+    padding: 0;
+    position: absolute;
+    right: 0;
+    transform: translateY(-100%);
+    z-index: 1;
+    border-radius: 0 4px 4px 0;
+}
+
+.select-button-group button.mantine-Button-root:active {
+    transform: translateY(-100%);
+}
+
+.variables-json-input textarea {
+    font-size: 14px !important;
+}
+
+.disabled-text-input > label {
+    pointer-events: none;
+}
+
+.disabled-text-input > .mantine-TextInput-wrapper {
+    cursor: not-allowed;
+}
+
+.disabled-text-input > .mantine-TextInput-wrapper > input {
+    pointer-events: none;
+    background-color: cornsilk;
+}
+
+.disabled-number-input > label {
+    pointer-events: none;
+}
+
+.disabled-number-input > .mantine-NumberInput-wrapper {
+    cursor: not-allowed;
+}
+
+.disabled-number-input > .mantine-NumberInput-wrapper > input {
+    pointer-events: none;
+    background-color: cornsilk;
+}
+
+.disabled-number-input > .mantine-NumberInput-wrapper > .mantine-NumberInput-rightSection {
+    pointer-events: none;
+}
+
+.document-save-button:disabled {
+    border: 1px solid transparent !important;
+    background-color: rgb(130, 201, 30) !important;
+    color: rgb(255, 255, 255) !important;
+    opacity: 0.5;
+}
