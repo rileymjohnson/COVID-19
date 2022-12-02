@@ -20,7 +20,7 @@ page.layout = html.Div([
                 'preserveAspectRatio': 'xMidYMid slice'
             }
         },
-        width='75%',
+        width='60%',
         url='/assets/lottie-animation-document-search.json'
     ),
     dmc.Center(

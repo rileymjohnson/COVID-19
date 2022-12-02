@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "covid-19"
+version = "0.1.0"
+description = "COVID-19 guidance document analyzation"
+authors = ["Riley Johnson <rileymillerjohnson@gmail.com>"]
+readme = "README.md"
+packages = [{include = "covid_19"}]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+dash-extensions = "^0.1.6"
+dash-iconify = "^0.1.2"
+dash-mantine-components = "^0.10.2"
+dash-labs = "^1.2.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

@@ -1,4 +1,4 @@
-from dash_extensions.enrich import DashBlueprint, html, callback_context, ALL, Output, Input, State, dcc
+from dash_extensions.enrich import DashBlueprint, html, Output, Input, State, dcc, no_update
 import dash_mantine_components as dmc
 from dash_iconify import DashIconify
 import json
@@ -28,131 +28,103 @@ page.order = -1
 
 DEFAULT_TAG_COLOR = '#343353'
 
-page.clientside_callback(
+def generate_input_javascript(component_id):
+    return f"""
+    (value, data) => {{
+        const isInitialCall = data.hasOwnProperty('{component_id}')
+        return [
+            !isInitialCall,
+            Object.assign(data, {{
+                ...data,
+                '{component_id}': isInitialCall ? value : undefined
+            }})
+        ]
+    }}
     """
-    chips => console.log('chips', chips)
-    """,
-    Input('types-chips', 'value')
-)
 
-page.clientside_callback(
-    """
-    tags => console.log('tags', tags)
-    """,
-    Input('tag-multi-select', 'value')
+@page.callback(
+    Output('save-button', 'children'),
+    Output('notifications-div', 'children'),
+    Input('save-button', 'n_clicks'),
+    State('save-data', 'data'),
+    prevent_initial_call=True
 )
+def save_button_handler(n_clicks, data):
+    if n_clicks is not None:
+        Document.update_one(data)
 
-page.clientside_callback(
-    """
-    jurisdictions => console.log('jurisdictions', jurisdictions)
-    """,
-    Input('jurisdiction-multi-select', 'value')
-)
+    return no_update, dmc.Notification(
+        title='Success!',
+        action='show',
+        color='lime',
+        id='save-success-notification',
+        message='The document has been saved successfully',
+        icon=[
+            DashIconify(icon='carbon:checkmark-filled')
+        ]
+    )
 
-page.clientside_callback(
-    """
-    language => console.log('language', language)
-    """,
-    Input('language-select', 'value')
-)
+for radio_button_id in [
+    'has_relevant_information',
+    'is_foreign_language',
+    'is_malformed',
+    'is_empty'
+]:
+    page.clientside_callback(
+        generate_input_javascript(radio_button_id),
+        Output('save-button', 'disabled'),
+        Output('save-data', 'data'),
+        Input(radio_button_id, 'value'),
+        State('save-data', 'data')
+    )
 
-page.clientside_callback(
-    """
-    file_type => console.log('file_type', file_type)
-    """,
-    Input('file-type-select', 'value')
-)
+for multi_select_id in [
+    'types',
+    'tags',
+    'jurisdictions'
+]:
+    page.clientside_callback(
+        generate_input_javascript(multi_select_id),
+        Output('save-button', 'disabled'),
+        Output('save-data', 'data'),
+        Input(multi_select_id, 'value'),
+        State('save-data', 'data')
+    )
 
-page.clientside_callback(
-    """
-    notes => console.log('notes', notes)
-    """,
-    Input('notes-input', 'value')
-)
+for component_id in [
+    'language',
+    'file_type',
+    'notes',
+    'variables',
+    'effective-date-input',
+    'effective-time-input',
+    'termination-date-input',
+    'termination-time-input',
+    'importance',
+    'title',
+    'slug',
+    'source-input',
+    'source_notes'
+]:
+    page.clientside_callback(
+        generate_input_javascript(component_id),
+        Output('save-button', 'disabled'),
+        Output('save-data', 'data'),
+        Input(component_id, 'value'),
+        State('save-data', 'data')
+    )
 
-page.clientside_callback(
-    """
-    variables => console.log('variables', variables)
-    """,
-    Input('variables-input', 'value')
-)
-
-page.clientside_callback(
-    """
-    effective_date => console.log('effective_date', effective_date)
-    """,
-    Input('effective-date-input', 'value')
-)
-
-page.clientside_callback(
-    """
-    effective_time => console.log('effective_time', effective_time)
-    """,
-    Input('effective-time-input', 'value')
-)
-
-page.clientside_callback(
-    """
-    termination_date => console.log('termination_date', termination_date)
-    """,
-    Input('termination-date-input', 'value')
-)
-
-page.clientside_callback(
-    """
-    termination_time => console.log('termination_time', termination_time)
-    """,
-    Input('termination-time-input', 'value')
-)
-
-page.clientside_callback(
-    """
-    importance => console.log('importance', importance)
-    """,
-    Input('importance-slider', 'value')
-)
-
-page.clientside_callback(
-    """
-    title => console.log('title', title)
-    """,
-    Input('title-input', 'value')
-)
-
-page.clientside_callback(
-    """
-    slug => console.log('slug', slug)
-    """,
-    Input('document-slug-input', 'value')
-)
-
-page.clientside_callback(
-    """
-    source => console.log('source', source)
-    """,
-    Input('source-input', 'value')
-)
-
-page.clientside_callback(
-    """
-    source_notes => console.log('source_notes', source_notes)
-    """,
-    Input('source-notes-input', 'value')
-)
-
-page.clientside_callback(
-    """
-    reviewed => console.log('reviewed', reviewed)
-    """,
-    Input('is-reviewed-switch', 'checked')
-)
-
-page.clientside_callback(
-    """
-    flagged_for_review => console.log('flagged_for_review', flagged_for_review)
-    """,
-    Input('is-flagged-for-review-switch', 'checked')
-)
+for switch_id in [
+    'reviewed',
+    'flagged_for_review'
+]:
+    page.clientside_callback(
+        generate_input_javascript(switch_id),
+        Output('save-button', 'disabled'),
+        Output('save-data', 'data'),
+        Input(switch_id, 'checked'),
+        State('save-data', 'data')
+    )
 
 page.clientside_callback(
     """
@@ -164,7 +136,9 @@ page.clientside_callback(
 
 @page.callback(
     Output('add-types-chip-modal', 'opened'),
-    Output('types-chips', 'data'),
+    Output('types', 'data'),
+    Output('notifications-div', 'children'),
+    Output('add-types-chip-submit-button', 'children'),
     Input('add-types-chip-submit-button', 'n_clicks'),
     State('add-types-chip-label-input', 'value'),
     State('add-types-chip-value-input', 'value')
@@ -172,12 +146,28 @@ page.clientside_callback(
 def add_types_chip_submit_button_handler(n_clicks, label, value):
     if n_clicks and n_clicks > 0:
         DocumentType.create(label=label, value=value)
+        notification = dmc.Notification(
+            title='Success!',
+            action='show',
+            color='lime',
+            id='save-success-notification',
+            message='The document type has been added successfully',
+            icon=[
+                DashIconify(icon='carbon:checkmark')
+            ]
+        )
+    else:
+        notification = None
 
-    return False, DocumentType.get_select_values()
+    select_values = DocumentType.get_select_values()
+
+    return False, select_values, notification, no_update
 
 @page.callback(
     Output('add-tag-modal', 'opened'),
-    Output('tag-multi-select', 'data'),
+    Output('tags', 'data'),
+    Output('notifications-div', 'children'),
+    Output('add-tag-submit-button', 'children'),
     Input('add-tag-submit-button', 'n_clicks'),
     State('add-tag-color-picker-input', 'value'),
     State('add-tag-text-input', 'value')
@@ -185,12 +175,28 @@ def add_types_chip_submit_button_handler(n_clicks, label, value):
 def add_tag_submit_button_handler(n_clicks, color, text):
     if n_clicks and n_clicks > 0:
         Tag.create(text=text, color=color)
+        notification = dmc.Notification(
+            title='Success!',
+            action='show',
+            color='lime',
+            id='save-success-notification',
+            message='The tag has been added successfully',
+            icon=[
+                DashIconify(icon='carbon:checkmark')
+            ]
+        )
+    else:
+        notification = None
 
-    return False, Tag.get_select_values()
+    select_values = Tag.get_select_values()
+
+    return False, select_values, notification, no_update
 
 @page.callback(
     Output('add-language-modal', 'opened'),
-    Output('language-select', 'data'),
+    Output('language', 'data'),
+    Output('notifications-div', 'children'),
+    Output('add-language-submit-button', 'children'),
     Input('add-language-submit-button', 'n_clicks'),
     State('add-language-label-input', 'value'),
     State('add-language-value-input', 'value')
@@ -198,12 +204,28 @@ def add_tag_submit_button_handler(n_clicks, color, text):
 def add_language_submit_button_handler(n_clicks, label, value):
     if n_clicks and n_clicks > 0:
         Language.create(label=label, value=value)
+        notification = dmc.Notification(
+            title='Success!',
+            action='show',
+            color='lime',
+            id='save-success-notification',
+            message='The language has been added successfully',
+            icon=[
+                DashIconify(icon='carbon:checkmark')
+            ]
+        )
+    else:
+        notification = None
 
-    return False, Language.get_select_values()
+    select_values = Language.get_select_values()
+
+    return False, select_values, notification, no_update
 
 @page.callback(
     Output('add-jurisdiction-modal', 'opened'),
-    Output('jurisdiction-multi-select', 'data'),
+    Output('jurisdictions', 'data'),
+    Output('notifications-div', 'children'),
+    Output('add-jurisdiction-submit-button', 'children'),
     Input('add-jurisdiction-submit-button', 'n_clicks'),
     State('add-jurisdiction-label-input', 'value'),
     State('add-jurisdiction-value-input', 'value')
@@ -211,71 +233,86 @@ def add_language_submit_button_handler(n_clicks, label, value):
 def add_jurisdiction_submit_button_handler(n_clicks, label, value):
     if n_clicks and n_clicks > 0:
         Jurisdiction.create(label=label, value=value)
+        notification = dmc.Notification(
+            title='Success!',
+            action='show',
+            color='lime',
+            id='save-success-notification',
+            message='The jurisdiction has been added successfully',
+            icon=[
+                DashIconify(icon='carbon:checkmark')
+            ]
+        )
+    else:
+        notification = None
 
-    return False, Jurisdiction.get_select_values()
+    select_values = Jurisdiction.get_select_values()
+
+    return False, select_values, notification, no_update
 
 @page.callback(
     Output('add-file-type-modal', 'opened'),
-    Output('file-type-select', 'data'),
+    Output('file_type', 'data'),
+    Output('notifications-div', 'children'),
+    Output('add-file-type-submit-button', 'children'),
     Input('add-file-type-submit-button', 'n_clicks'),
     State('add-file-type-label-input', 'value'),
     State('add-file-type-mimetype-input', 'value'),
-    State('add-file-type-suffix-input', 'value')
+    State('add-file-type-suffix-input', 'value'),
+    prevent_initial_call=True
 )
 def add_file_type_submit_button_handler(n_clicks, label, mimetype, suffix):
     if n_clicks and n_clicks > 0:
         FileType.create(label=label, mimetype=mimetype, suffix=suffix)
+        notification = dmc.Notification(
+            title='Success!',
+            action='show',
+            color='lime',
+            id='save-success-notification',
+            message='The file type has been added successfully',
+            icon=[
+                DashIconify(icon='carbon:checkmark')
+            ]
+        )
+    else:
+        notification = None
 
-    return False, FileType.get_select_values()
+    select_values = FileType.get_select_values()
 
-page.clientside_callback(
-    """
-    () => false
-    """,
-    Output('add-types-chip-modal', 'opened'),
-    Input('add-types-chip-cancel-button', 'n_clicks')
-)
+    return False, select_values, notification, no_update
 
-page.clientside_callback(
-    """
-    () => false
-    """,
-    Output('add-tag-modal', 'opened'),
-    Input('add-tag-cancel-button', 'n_clicks')
-)
+for type_name in [
+    'types-chip',
+    'tag',
+    'language',
+    'jurisdiction',
+    'file-type'
+]:
+    page.clientside_callback(
+        """
+        () => false
+        """,
+        Output(f'add-{type_name}-modal', 'opened'),
+        Input(f'add-{type_name}-cancel-button', 'n_clicks')
+    )
 
-page.clientside_callback(
-    """
-    () => false
-    """,
-    Output('add-language-modal', 'opened'),
-    Input('add-language-cancel-button', 'n_clicks')
-)
+    page.clientside_callback(
+        """
+        n => n !== undefined
+        """,
+        Output(f'add-{type_name}-modal', 'opened'),
+        Input(f'{type_name}-add-button', 'n_clicks')
+    )
 
-page.clientside_callback(
-    """
-    () => false
-    """,
-    Output('add-jurisdiction-modal', 'opened'),
-    Input('add-jurisdiction-cancel-button', 'n_clicks')
-)
-
-page.clientside_callback(
-    """
-    () => false
-    """,
-    Output('add-file-type-modal', 'opened'),
-    Input('add-file-type-cancel-button', 'n_clicks')
-)
-
-page.clientside_callback(
-    """
-    () => ['', '']
-    """,
-    Input('add-types-chip-modal', 'opened'),
-    Output('add-types-chip-label-input', 'value'),
-    Output('add-types-chip-value-input', 'value')
-)
+    if type_name not in ['tag', 'file-type']:
+        page.clientside_callback(
+            """
+            () => ['', '']
+            """,
+            Input(f'add-{type_name}-modal', 'opened'),
+            Output(f'add-{type_name}-label-input', 'value'),
+            Output(f'add-{type_name}-value-input', 'value')
+        )
 
 page.clientside_callback(
     """
@@ -288,24 +325,6 @@ page.clientside_callback(
 
 page.clientside_callback(
     """
-    () => ['', '']
-    """,
-    Input('add-language-modal', 'opened'),
-    Output('add-language-label-input', 'value'),
-    Output('add-language-value-input', 'value')
-)
-
-page.clientside_callback(
-    """
-    () => ['', '']
-    """,
-    Input('add-jurisdiction-modal', 'opened'),
-    Output('add-jurisdiction-label-input', 'value'),
-    Output('add-jurisdiction-value-input', 'value')
-)
-
-page.clientside_callback(
-    """
     () => ['', '', '']
     """,
     Input('add-file-type-modal', 'opened'),
@@ -314,115 +333,25 @@ page.clientside_callback(
     Output('add-file-type-suffix-input', 'value')
 )
 
-@page.callback(
-    Output({'type': 'multi-switch-is-guidance-document', 'index': ALL}, 'variant'),
-    Input({'type': 'multi-switch-is-guidance-document', 'index': ALL}, 'n_clicks'),
-    prevent_initial_call=True
-)
-def multi_switch_has_relevant_information_handler(_):
-    button_id = callback_context.triggered_id
-    value = [None, True, False][button_id['index']]
-
-    print('has_relevant_information', value)
-
-    return [
-        'filled' if i['id'] == button_id else 'outline' \
-            for i in callback_context.args_grouping
-    ]
-
-@page.callback(
-    Output({'type': 'multi-switch-is-foreign-language', 'index': ALL}, 'variant'),
-    Input({'type': 'multi-switch-is-foreign-language', 'index': ALL}, 'n_clicks'),
-    prevent_initial_call=True
-)
-def multi_switch_is_foreign_language_handler(_):
-    button_id = callback_context.triggered_id
-    value = [None, True, False][button_id['index']]
-
-    print('is_foreign_language', value)
-
-    return [
-        'filled' if i['id'] == button_id else 'outline' \
-            for i in callback_context.args_grouping
-    ]
-
-@page.callback(
-    Output({'type': 'multi-switch-is-malformed', 'index': ALL}, 'variant'),
-    Input({'type': 'multi-switch-is-malformed', 'index': ALL}, 'n_clicks'),
-    prevent_initial_call=True
-)
-def multi_switch_is_malformed_handler(_):
-    button_id = callback_context.triggered_id
-    value = [None, True, False][button_id['index']]
-
-    print('is_malformed', value)
-
-    return [
-        'filled' if i['id'] == button_id else 'outline' \
-            for i in callback_context.args_grouping
-    ]
-
-@page.callback(
-    Output({'type': 'multi-switch-is-empty', 'index': ALL}, 'variant'),
-    Input({'type': 'multi-switch-is-empty', 'index': ALL}, 'n_clicks'),
-    prevent_initial_call=True
-)
-def multi_switch_is_empty_handler(_):
-    button_id = callback_context.triggered_id
-    value = [None, True, False][button_id['index']]
-
-    print('is_empty', value)
-
-    return [
-        'filled' if i['id'] == button_id else 'outline' \
-            for i in callback_context.args_grouping
-    ]
-
-page.clientside_callback(
-    """
-    n => n !== undefined
-    """,
-    Output('add-types-chip-modal', 'opened'),
-    Input('types-chips-add-button', 'n_clicks')
-)
-
-page.clientside_callback(
-    """
-    n => n !== undefined
-    """,
-    Output('add-file-type-modal', 'opened'),
-    Input('file-type-add-button', 'n_clicks')
-)
-
-page.clientside_callback(
-    """
-    n => n !== undefined
-    """,
-    Output('add-language-modal', 'opened'),
-    Input('language-add-button', 'n_clicks')
-)
-
-page.clientside_callback(
-    """
-    n => n !== undefined
-    """,
-    Output('add-tag-modal', 'opened'),
-    Input('tag-add-button', 'n_clicks')
-)
-
-page.clientside_callback(
-    """
-    n => n !== undefined
-    """,
-    Output('add-jurisdiction-modal', 'opened'),
-    Input('jurisdiction-add-button', 'n_clicks')
-)
+def binary_radio_button_value(value):
+    if value == True:
+        return 'true'
+    elif value == False:
+        return 'false'
+    else:
+        return 'none'
 
 def layout(document_id):
     try:
-        document = Document.get_one(int(document_id))
+        document = Document.get_one(
+            int(document_id)
+        )
 
         return html.Div([
+            html.Div(id='notifications-div'),
+            dcc.Store(id='save-data', data={
+                'document_id': int(document_id)
+            }),
             dmc.Modal(
                 title='Add File Type',
                 id='add-file-type-modal',
@@ -592,7 +521,7 @@ def layout(document_id):
                     dmc.TextInput(
                         id='add-tag-color-picker-input',
                         label='Color',
-                        class_name='disabled-text-input',
+                        class_name='disabled-input',
                         icon=[
                             DashIconify(icon='carbon:color-palette')
                         ],
@@ -667,7 +596,7 @@ def layout(document_id):
                                             dmc.TextInput(
                                                 label='Title',
                                                 value=document.title,
-                                                id='title-input'
+                                                id='title'
                                             ),
                                             dmc.Space(h=8),
                                             dmc.Grid(
@@ -676,7 +605,8 @@ def layout(document_id):
                                                         dmc.DatePicker(
                                                             label='Effective Date',
                                                             value=document.effective_date.date(),
-                                                            id='effective-date-input'
+                                                            id='effective-date-input',
+                                                            class_name='disabled-input'
                                                         ),
                                                         span=9
                                                     ),
@@ -685,7 +615,8 @@ def layout(document_id):
                                                             label='_',
                                                             withSeconds=True,
                                                             value=document.effective_date,
-                                                            id='effective-time-input'
+                                                            id='effective-time-input',
+                                                            class_name='disabled-input'
                                                         ),
                                                         span=3
                                                     ),
@@ -698,7 +629,8 @@ def layout(document_id):
                                                         dmc.DatePicker(
                                                             label='Termination Date',
                                                             value=document.termination_date.date(),
-                                                            id='termination-date-input'
+                                                            id='termination-date-input',
+                                                            class_name='disabled-input'
                                                         ),
                                                         span=9
                                                     ),
@@ -707,7 +639,8 @@ def layout(document_id):
                                                             label='_',
                                                             withSeconds=True,
                                                             value=document.termination_date,
-                                                            id='termination-time-input'
+                                                            id='termination-time-input',
+                                                            class_name='disabled-input'
                                                         ),
                                                         span=3
                                                     ),
@@ -722,17 +655,17 @@ def layout(document_id):
                                             dmc.TextInput(
                                                 label='Document Slug',
                                                 value=document.slug,
-                                                id='document-slug-input'
+                                                id='slug'
                                             ),
                                             dmc.TextInput(
                                                 label='Database ID',
                                                 value=str(document.id),
-                                                class_name='disabled-text-input',
+                                                class_name='disabled-input',
                                             ),
                                             dmc.NumberInput(
                                                 label='# Versions',
                                                 value=document.num_versions,
-                                                class_name='disabled-number-input'
+                                                class_name='disabled-input'
                                             )
                                         ],
                                         span=5
@@ -745,7 +678,7 @@ def layout(document_id):
                                         dmc.TextInput(
                                             label='Document Issuer Short Name',
                                             value=document.issuer.short_name,
-                                            class_name='disabled-text-input'
+                                            class_name='disabled-input'
                                         ),
                                         span=6
                                     ),
@@ -753,7 +686,7 @@ def layout(document_id):
                                         dmc.TextInput(
                                             label='Document Issuer Long Name',
                                             value=document.issuer.long_name,
-                                            class_name='disabled-text-input'
+                                            class_name='disabled-input'
                                         ),
                                         span=6
                                     )
@@ -786,7 +719,7 @@ def layout(document_id):
                                 label='Source Notes',
                                 value=document.source_notes,
                                 placeholder='Enter source notes here',
-                                id='source-notes-input'
+                                id='source_notes'
                             ),
                             dmc.Grid(
                                 [
@@ -796,7 +729,7 @@ def layout(document_id):
                                                 dmc.Select(
                                                     label='File Type',
                                                     placeholder='Select file type',
-                                                    id='file-type-select',
+                                                    id='file_type',
                                                     value=str(document.file_type_id)
                                                 ),
                                                 dmc.Button(
@@ -819,7 +752,7 @@ def layout(document_id):
                                                 dmc.Select(
                                                     label='Language',
                                                     placeholder='Select language',
-                                                    id='language-select',
+                                                    id='language',
                                                     value=str(document.language_id)
                                                 ),
                                                 dmc.Button(
@@ -845,7 +778,7 @@ def layout(document_id):
                                         searchable=True,
                                         nothingFound='No tags found',
                                         placeholder='Enter tags',
-                                        id='tag-multi-select',
+                                        id='tags',
                                         value=[str(t['id']) for t in document.tags]
                                     ),
                                     dmc.Button(
@@ -867,7 +800,7 @@ def layout(document_id):
                                         searchable=True,
                                         nothingFound='No jurisdictions found',
                                         placeholder='Enter jurisdictions',
-                                        id='jurisdiction-multi-select',
+                                        id='jurisdictions',
                                         value=[str(t['id']) for t in document.jurisdictions]
                                     ),
                                     dmc.Button(
@@ -891,7 +824,7 @@ def layout(document_id):
                                             autosize=True,
                                             minRows=3,
                                             value=document.notes,
-                                            id='notes-input'
+                                            id='notes'
                                         ),
                                         span=6
                                     ),
@@ -904,8 +837,12 @@ def layout(document_id):
                                             autosize=True,
                                             minRows=3,
                                             class_name='variables-json-input',
-                                            value=json.dumps(document.variables),
-                                            id='variables-input'
+                                            value=json.dumps(
+                                                document.variables,
+                                                sort_keys=True,
+                                                indent=2
+                                            ),
+                                            id='variables'
                                         ),
                                         span=6
                                     ),
@@ -927,6 +864,7 @@ def layout(document_id):
                                             DashIconify(icon='carbon:save', width=25)
                                         ],
                                         class_name='document-save-button',
+                                        id='save-button',
                                         disabled=True
                                     ),
                                     dmc.Divider(variant='solid'),
@@ -937,7 +875,7 @@ def layout(document_id):
                                         label='Is Reviewed',
                                         offLabel='No',
                                         checked=document.reviewed,
-                                        id='is-reviewed-switch'
+                                        id='reviewed'
                                     ),
                                     dmc.Switch(
                                         size='xl',
@@ -946,7 +884,7 @@ def layout(document_id):
                                         label='Is Flagged for Review',
                                         offLabel='No',
                                         checked=document.flagged_for_review,
-                                        id='is-flagged-for-review-switch'
+                                        id='flagged_for_review'
                                     ),
                                     dmc.Divider(variant='solid'),
                                     dmc.Stack(
@@ -964,7 +902,7 @@ def layout(document_id):
                                                 max=10,
                                                 step=1,
                                                 size='md',
-                                                id='importance-slider'
+                                                id='importance'
                                             )
                                         ],
                                         spacing='sm',
@@ -975,68 +913,36 @@ def layout(document_id):
                                     dmc.Stack(
                                         [
                                             dmc.Text('Has Relevant Information', weight=500, size='sm'),
-                                            dmc.Group(
-                                                [
-                                                    dmc.Button(
-                                                        'None',
-                                                        variant='filled' if document.has_relevant_information is None else 'outline',
-                                                        color='indigo',
-                                                        size='xs',
-                                                        id={'type': 'multi-switch-is-guidance-document', 'index': 0}
-                                                    ),
-                                                    dmc.Button(
-                                                        'True',
-                                                        variant='filled' if document.has_relevant_information == True else 'outline',
-                                                        color='lime',
-                                                        size='xs',
-                                                        id={'type': 'multi-switch-is-guidance-document', 'index': 1}
-                                                    ),
-                                                    dmc.Button(
-                                                        'False',
-                                                        variant='filled' if document.has_relevant_information == False else 'outline',
-                                                        color='red',
-                                                        size='xs',
-                                                        id={'type': 'multi-switch-is-guidance-document', 'index': 2}
-                                                    ),
+                                            dmc.RadioGroup(
+                                                data=[
+                                                    {'label': 'Unknown', 'value': 'none'},
+                                                    {'label': 'Yes', 'value': 'true'},
+                                                    {'label': 'No', 'value': 'false'},
                                                 ],
-                                                style={'width': '100%'},
-                                                spacing='xs',
-                                                class_name='button-group'
+                                                size='md',
+                                                id='has_relevant_information',
+                                                value=binary_radio_button_value(
+                                                    document.has_relevant_information
+                                                )
                                             )
                                         ],
                                         spacing='xs',
-                                        style={'gap': '6px', 'textAlign': 'left'}
+                                        style={'gap': '3px', 'textAlign': 'left'}
                                     ),
                                     dmc.Stack(
                                         [
                                             dmc.Text('Is Foreign Language', weight=500, size='sm'),
-                                            dmc.Group(
-                                                [
-                                                    dmc.Button(
-                                                        'None',
-                                                        variant='filled' if document.is_foreign_language is None else 'outline',
-                                                        color='indigo',
-                                                        size='xs',
-                                                        id={'type': 'multi-switch-is-foreign-language', 'index': 0}
-                                                    ),
-                                                    dmc.Button(
-                                                        'True',
-                                                        variant='filled' if document.is_foreign_language == True else 'outline',
-                                                        color='lime',
-                                                        size='xs',
-                                                        id={'type': 'multi-switch-is-foreign-language', 'index': 1}
-                                                    ),
-                                                    dmc.Button(
-                                                        'False',
-                                                        variant='filled' if document.is_foreign_language == False else 'outline',
-                                                        color='red',
-                                                        size='xs',
-                                                        id={'type': 'multi-switch-is-foreign-language', 'index': 2}
-                                                    ),
+                                            dmc.RadioGroup(
+                                                data=[
+                                                    {'label': 'Unknown', 'value': 'none'},
+                                                    {'label': 'Yes', 'value': 'true'},
+                                                    {'label': 'No', 'value': 'false'},
                                                 ],
-                                                style={'width': '100%'},
-                                                spacing='xs',
-                                                class_name='button-group'
+                                                size='md',
+                                                id='is_foreign_language',
+                                                value=binary_radio_button_value(
+                                                    document.is_foreign_language
+                                                )
                                             )
                                         ],
                                         spacing='xs',
@@ -1045,33 +951,17 @@ def layout(document_id):
                                     dmc.Stack(
                                         [
                                             dmc.Text('Is Malformed', weight=500, size='sm'),
-                                            dmc.Group(
-                                                [
-                                                    dmc.Button(
-                                                        'None',
-                                                        variant='filled' if document.is_malformed is None else 'outline',
-                                                        color='indigo',
-                                                        size='xs',
-                                                        id={'type': 'multi-switch-is-malformed', 'index': 0}
-                                                    ),
-                                                    dmc.Button(
-                                                        'True',
-                                                        variant='filled' if document.is_malformed == True else 'outline',
-                                                        color='lime',
-                                                        size='xs',
-                                                        id={'type': 'multi-switch-is-malformed', 'index': 1}
-                                                    ),
-                                                    dmc.Button(
-                                                        'False',
-                                                        variant='filled' if document.is_malformed == False else 'outline',
-                                                        color='red',
-                                                        size='xs',
-                                                        id={'type': 'multi-switch-is-malformed', 'index': 2}
-                                                    ),
+                                            dmc.RadioGroup(
+                                                data=[
+                                                    {'label': 'Unknown', 'value': 'none'},
+                                                    {'label': 'Yes', 'value': 'true'},
+                                                    {'label': 'No', 'value': 'false'},
                                                 ],
-                                                style={'width': '100%'},
-                                                spacing='xs',
-                                                class_name='button-group'
+                                                size='md',
+                                                id='is_malformed',
+                                                value=binary_radio_button_value(
+                                                    document.is_malformed
+                                                )
                                             )
                                         ],
                                         spacing='xs',
@@ -1080,37 +970,25 @@ def layout(document_id):
                                     dmc.Stack(
                                         [
                                             dmc.Text('Is Empty', weight=500, size='sm'),
-                                            dmc.Group(
-                                                [
-                                                    dmc.Button(
-                                                        'None',
-                                                        variant='filled' if document.is_empty is None else 'outline',
-                                                        color='indigo',
-                                                        size='xs',
-                                                        id={'type': 'multi-switch-is-empty', 'index': 0}
-                                                    ),
-                                                    dmc.Button(
-                                                        'True',
-                                                        variant='filled' if document.is_empty == True else 'outline',
-                                                        color='lime',
-                                                        size='xs',
-                                                        id={'type': 'multi-switch-is-empty', 'index': 1}
-                                                    ),
-                                                    dmc.Button(
-                                                        'False',
-                                                        variant='filled' if document.is_empty == False else 'outline',
-                                                        color='red',
-                                                        size='xs',
-                                                        id={'type': 'multi-switch-is-empty', 'index': 2}
-                                                    ),
+                                            dmc.RadioGroup(
+                                                data=[
+                                                    {'label': 'Unknown', 'value': 'none'},
+                                                    {'label': 'Yes', 'value': 'true'},
+                                                    {'label': 'No', 'value': 'false'},
                                                 ],
-                                                style={'width': '100%'},
-                                                spacing='xs',
-                                                class_name='button-group'
+                                                size='md',
+                                                id='is_empty',
+                                                value=binary_radio_button_value(
+                                                    document.is_empty
+                                                )
                                             )
                                         ],
                                         spacing='xs',
-                                        style={'gap': '6px', 'textAlign': 'left'}
+                                        style={
+                                            'gap': '6px',
+                                            'textAlign': 'left',
+                                            'marginBottom': '6px'
+                                        }
                                     ),
                                     dmc.Divider(variant='solid'),
                                     dmc.Stack(
@@ -1135,7 +1013,7 @@ def layout(document_id):
                                                             variant='filled',
                                                             color='indigo',
                                                             style={'padding': '0'},
-                                                            id='types-chips-add-button'
+                                                            id='types-chip-add-button'
                                                         ),
                                                         span=2
                                                     )
@@ -1144,7 +1022,7 @@ def layout(document_id):
                                             dmc.Chips(
                                                 data=[],
                                                 multiple=True,
-                                                id='types-chips',
+                                                id='types',
                                                 value=[str(t['id']) for t in document.types]
                                             )
                                         ],

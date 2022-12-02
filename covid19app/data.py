@@ -5,7 +5,6 @@ from playhouse.postgres_ext import (
     TextField,
     ForeignKeyField,
     DateTimeField,
-    IntervalField,
     BooleanField,
     SmallIntegerField,
     BinaryJSONField,
@@ -21,6 +20,7 @@ from matplotlib.colors import cnames
 from types import SimpleNamespace
 from datetime import datetime
 import random
+import json
 
 
 config = SimpleNamespace(
@@ -171,8 +171,6 @@ class Document(BaseModel):
     issuer = ForeignKeyField(DocumentIssuer, backref='documents')
     language = ForeignKeyField(Language, null=True)
     file_type = ForeignKeyField(FileType, null=True)
-    effective_date = DateTimeField()
-    in_effect_duration = IntervalField(null=True)
     source = TextField()
     source_notes = TextField(null=True)
     reviewed = BooleanField(default=False)
@@ -185,6 +183,74 @@ class Document(BaseModel):
     notes = TextField(null=True)
     variables = BinaryJSONField(default=lambda: {})
     search_content = TSVectorField()
+
+    @classmethod
+    def update_one(cls, data):
+        document = cls.get(data.pop('document_id'))
+
+        for field, value in data.items():
+            if field in ['types', 'tags', 'jurisdictions']:
+                continue
+            elif field in [
+                'has_relevant_information', 'is_empty',
+                'is_malformed', 'is_foreign_language'
+            ]:
+                value = {
+                    'true': True,
+                    'false': False,
+                    'none': None
+                }.get(value)
+            elif field == 'variables':
+                value = json.loads(value)
+
+            setattr(document, field, value)
+
+        document.save()
+
+        if 'types' in data:
+            types = [(document.id, int(i)) for i in data['types']]
+
+            DocumentDocumentTypeThroughTable \
+                .delete() \
+                .where(DocumentDocumentTypeThroughTable.document == document.id) \
+                .execute()
+
+            DocumentDocumentTypeThroughTable \
+                .insert_many(types, fields=[
+                    DocumentDocumentTypeThroughTable.document,
+                    DocumentDocumentTypeThroughTable.document_type
+                ]) \
+                .execute()
+
+        if 'tags' in data:
+            tags = [(document.id, int(i)) for i in data['tags']]
+
+            DocumentTagThroughTable \
+                .delete() \
+                .where(DocumentTagThroughTable.document == document.id) \
+                .execute()
+
+            DocumentTagThroughTable \
+                .insert_many(tags, fields=[
+                    DocumentTagThroughTable.document,
+                    DocumentTagThroughTable.tag
+                ]) \
+                .execute()
+
+        if 'jurisdictions' in data:
+            jurisdictions = [(document.id, int(i)) for i in data['jurisdictions']]
+
+            DocumentJurisdictionThroughTable \
+                .delete() \
+                .where(DocumentJurisdictionThroughTable.document == document.id) \
+                .execute()
+
+            DocumentJurisdictionThroughTable \
+                .insert_many(jurisdictions, fields=[
+                    DocumentJurisdictionThroughTable.document,
+                    DocumentJurisdictionThroughTable.jurisdiction
+                ]) \
+                .execute()
 
     @classmethod
     def _selector(cls):
@@ -215,10 +281,8 @@ class Document(BaseModel):
         return cls \
             .select(
                 *PeeweeHelpers.all_but(cls, cls.search_content),
-                (
-                    cls.effective_date + 
-                    cls.in_effect_duration
-                ).alias('termination_date'),
+                fn.MIN(DocumentVersion.effective_date).alias('effective_date'),
+                fn.MAX(DocumentVersion.termination_date).alias('termination_date'),
                 fn.COUNT(DocumentVersion.id).alias('num_versions'),
                 fn.ARRAY_AGG(DocumentVersion.id).alias('version_ids'),
                 document_types.alias('types'),
@@ -277,7 +341,7 @@ class DocumentVersion(BaseModel):
     slug = TextField()
     document = ForeignKeyField(Document, backref='versions')
     effective_date = DateTimeField()
-    in_effect_duration = IntervalField(null=True)
+    termination_date = DateTimeField(null=True)
     source = TextField()
     source_notes = TextField(null=True)
     content = TextField()
@@ -288,7 +352,7 @@ class DocumentVersion(BaseModel):
     raw_file = TextField(null=True)
     reviewed = BooleanField(default=False)
     flagged_for_review = BooleanField(default=False)
-    is_guidance_document = BooleanField(null=True)
+    has_relevant_information = BooleanField(null=True)
     is_foreign_language = BooleanField(null=True)
     is_malformed = BooleanField(null=True)
     is_empty = BooleanField(null=True)
@@ -300,19 +364,62 @@ class DocumentVersion(BaseModel):
 
     @classmethod
     def _selector(cls):
+        document_version_tags = cls \
+            .select(
+                fn.JSON_AGG(Tag).alias('tags')
+            ) \
+            .join(DocumentVersionTagThroughTable) \
+            .join(Tag) \
+            .group_by(cls.id)
+
+        document_version_types = cls \
+            .select(
+                fn.JSON_AGG(DocumentType).alias('types')
+            ) \
+            .join(DocumentVersionDocumentTypeThroughTable) \
+            .join(DocumentType) \
+            .group_by(cls.id)
+
+        document_version_jurisdictions = cls \
+            .select(
+                fn.JSON_AGG(Jurisdiction).alias('jurisdictions')
+            ) \
+            .join(DocumentVersionJurisdictionThroughTable) \
+            .join(Jurisdiction) \
+            .group_by(cls.id)
+
+        document_version_num = cls \
+            .select(
+                cls.id,
+                fn \
+                    .RANK() \
+                    .over(
+                        order_by=[cls.effective_date],
+                        partition_by=[Document.id]
+                    ) \
+                    .alias('version_num')
+            ) \
+            .join(Document)
+
         return cls \
             .select(
-                *PeeweeHelpers.all_but(cls, [cls.search_content, cls.quick_search_content]),
-                DocumentIssuer.long_name.alias('issuer_long_name'),
-                DocumentIssuer.short_name.alias('issuer_short_name'),
-                DocumentIssuer.id.alias('issuer'),
-                (
-                    cls.effective_date + 
-                    cls.in_effect_duration
-                ).alias('termination_date')
+                *PeeweeHelpers.all_but(cls, [
+                    cls.content,
+                    cls.search_content,
+                    cls.quick_search_content
+                ]),
+                fn.ROW_TO_JSON(DocumentIssuer).alias('issuer'),
+                document_version_tags.alias('tags'),
+                document_version_jurisdictions.alias('jurisdictions'),
+                document_version_types.alias('types'),
+                fn.TO_JSON(document_version_num.c.version_num).alias('version_num')
             ) \
-            .join(Document, on=(cls.document == Document.id)) \
-            .join(DocumentIssuer, on=(Document.issuer == DocumentIssuer.id))
+            .join(Document) \
+            .join(DocumentIssuer) \
+            .join(document_version_tags, on=(cls.id == cls.id)) \
+            .join(document_version_jurisdictions, on=(cls.id == cls.id)) \
+            .join(document_version_types, on=(cls.id == cls.id)) \
+            .join(document_version_num, on=(DocumentVersion.id == document_version_num.c.id))
 
     @classmethod
     def get_one(cls, document_version_id: int) -> dict:

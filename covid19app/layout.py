@@ -7,24 +7,38 @@ from dash_iconify import DashIconify
 def render_layout(pages):
     layout = DashBlueprint()
 
-    @layout.callback(
+    layout.clientside_callback(
+        """
+        () => true
+        """,
         Output('navbar-drawer', 'opened'),
         Input('navbar-menu-button', 'n_clicks'),
         prevent_initial_call=True
     )
-    def navbar_menu_toggle(_):
-        return True
 
-    @layout.callback(
+    layout.clientside_callback(
+        """
+        () => false
+        """,
+        Output('navbar-drawer', 'opened'),
         Input({'type': 'navbar-link', 'index': ALL}, 'n_clicks'),
-        Output('navbar-drawer', 'opened')
+        prevent_initial_call=True
     )
-    def navbar_link_click(_):
-        return False
+
+    layout.clientside_callback(
+        """
+        debounce(searchString => {
+            if (searchString !== undefined) {
+                console.log(searchString)
+            }
+        }, 500)
+        """,
+        Input('navbar-search-box', 'value')
+    )
 
     pages = [p for p in pages.values() if p['order'] != -1]
 
-    layout.layout = html.Div([
+    layout.layout = dmc.NotificationsProvider([
         dmc.Drawer(
             [
                 dmc.Navbar(
@@ -109,10 +123,11 @@ def render_layout(pages):
                                     style={'width': 250},
                                     placeholder='Search documents',
                                     icon=[DashIconify(icon='carbon:search')],
+                                    id='navbar-search-box'
                                 ),
                                 position='right',
                                 align='center',
-                                spacing='xl',
+                                spacing='xl'
                             ),
                         ],
                     ),

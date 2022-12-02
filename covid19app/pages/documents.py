@@ -1,4 +1,4 @@
-from dash_extensions.enrich import DashBlueprint, dcc, html, Input, Output, ALL
+from dash_extensions.enrich import DashBlueprint, dcc, html, Input, Output, State
 import dash_mantine_components as dmc
 from dash_iconify import DashIconify
 
@@ -49,21 +49,21 @@ def generate_tag_badges(tags):
         )
 
 @page.callback(
-    Input('documents-table-search', 'value'),
+    Output('pagination-button', 'total'),
     Input('pagination-num-input', 'value'),
-    Output('pagination-button', 'total')
+    State('documents-table-search', 'value')
 )
-def documents_table_pagination_size_change_handler(search_string, page_size):
+def documents_table_pagination_size_change_handler(page_size, search_string):
     if search_string:
         return Document.get_num_pages(page_size, search_string)
     else:
         return Document.get_num_pages(page_size)
 
 @page.callback(
+    Output('documents-table-body', 'children'),
     Input('pagination-button', 'page'),
     Input('pagination-num-input', 'value'),
-    Input('documents-table-search', 'value'),
-    Output('documents-table-body', 'children')
+    State('documents-table-search', 'value')
 )
 def documents_table_pagination_handler(page, page_size, search_string):
     if search_string:
@@ -113,6 +113,15 @@ def documents_table_pagination_handler(page, page_size, search_string):
                 )
             )
         ]) for document in documents]
+
+page.clientside_callback(
+    """
+    debounce(searchString => {
+        console.log(searchString)
+    }, 500)
+    """,
+    Input('documents-table-search', 'value')
+)
 
 page.layout = html.Div([
     dmc.Grid(

@@ -74,33 +74,27 @@
     font-size: 14px !important;
 }
 
-.disabled-text-input > label {
+.disabled-input > label {
     pointer-events: none;
 }
 
-.disabled-text-input > .mantine-TextInput-wrapper {
+.disabled-input > .mantine-TextInput-wrapper,
+.disabled-input > .mantine-TimeInput-wrapper,
+.disabled-input > div > .mantine-DatePicker-wrapper,
+.disabled-input > .mantine-NumberInput-wrapper {
     cursor: not-allowed;
 }
 
-.disabled-text-input > .mantine-TextInput-wrapper > input {
+.disabled-input > .mantine-TextInput-wrapper > input,
+.disabled-input > .mantine-TimeInput-wrapper > .mantine-TimeInput-input,
+.disabled-input > div > .mantine-DatePicker-wrapper > .mantine-DatePicker-wrapper > input,
+.disabled-input > .mantine-NumberInput-wrapper > input {
     pointer-events: none;
     background-color: cornsilk;
 }
 
-.disabled-number-input > label {
-    pointer-events: none;
-}
-
-.disabled-number-input > .mantine-NumberInput-wrapper {
-    cursor: not-allowed;
-}
-
-.disabled-number-input > .mantine-NumberInput-wrapper > input {
-    pointer-events: none;
-    background-color: cornsilk;
-}
-
-.disabled-number-input > .mantine-NumberInput-wrapper > .mantine-NumberInput-rightSection {
+.disabled-input > .mantine-NumberInput-wrapper > .mantine-NumberInput-rightSection,
+.disabled-input > div > .mantine-DatePicker-wrapper > .mantine-DatePicker-wrapper > .mantine-DatePicker-rightSection {
     pointer-events: none;
 }
 
@@ -109,4 +103,33 @@
     background-color: rgb(130, 201, 30) !important;
     color: rgb(255, 255, 255) !important;
     opacity: 0.5;
+}
+
+.document-save-button.mantine-Button-loading {
+    opacity: 1;
+}
+
+.lg-switch-sm-label label {
+    font-size: 14px;
+}
+
+.search-input-button-group .mantine-Col-root:first-child {
+    padding-right: 0;
+}
+
+.search-input-button-group .mantine-Col-root:last-child {
+    padding-left: 0;
+}
+
+.search-input-button-group .mantine-Tooltip-root {
+    width: 100%;
+}
+
+.search-input-button-group button {
+    border-radius: 0 4px 4px 0;
+    width: 100%;
+}
+
+.search-input-button-group input {
+    border-radius: 4px 0 0 4px;
 }
